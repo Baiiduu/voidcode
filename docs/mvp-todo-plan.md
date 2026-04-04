@@ -2,6 +2,8 @@
 
 This document turns the current roadmap into a delivery checklist for the first real product loop.
 
+Use GitHub issues and milestones as the executable backlog. This document defines the execution shape and acceptance direction; `docs/contracts/` defines normative client-facing contracts.
+
 ## Status
 
 VoidCode already has a truthful pre-MVP foundation:
@@ -125,6 +127,8 @@ Goal: prove the runtime is configurable without exploding the surface area.
 ## Phase 3 — TUI MVP client
 
 Goal: ship a keyboard-first client with the same core interaction shape users expect from terminal-native coding agents.
+
+There is no TUI in the repository today. This phase covers designing and building it as a client on top of the runtime boundary.
 
 ### TODO
 

@@ -41,6 +41,8 @@ bun run preview
 
 ### Project Structure
 
+> **Note:** The structure below describes the intended frontend growth path, not a complete representation of the current tree. Today the frontend is still relatively flat and centered around `src/App.tsx`, `src/main.tsx`, `src/store/`, `src/i18n/`, and `src/types/`.
+
 ```
 frontend/
 ├── src/
@@ -77,6 +79,7 @@ The frontend is designed to communicate with the VoidCode runtime through:
 ## Contributing
 
 Please follow the same guidelines as the main project:
+- Prefer the root `mise run frontend:*` tasks when working from the repo root; `bun install` and `bun run ...` in `frontend/` remain valid direct equivalents.
 - Run `bun run lint` before committing
 - Run `bun run typecheck` to ensure type safety
 - Follow the existing code style
