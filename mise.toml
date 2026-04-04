@@ -1,13 +1,33 @@
-# Python 3.14 is preferred for local development.
-# If 3.14 is unavailable on a machine, 3.13 or 3.12 are acceptable temporary fallbacks.
-
 [tools]
-python = "3.14"
 uv = "latest"
+bun = "latest"
 
 [env]
-UV_PYTHON = "3.14"
+_.python.venv = { path = ".venv" }
 PYTHONPATH = "src"
+
+[tasks."frontend:install"]
+run = "bun install"
+dir = "frontend"
+
+[tasks."frontend:dev"]
+run = "bun run dev"
+dir = "frontend"
+
+[tasks."frontend:build"]
+run = "bun run build"
+dir = "frontend"
+
+[tasks."frontend:lint"]
+run = "bun run lint"
+dir = "frontend"
+
+[tasks."frontend:typecheck"]
+run = "bun run typecheck"
+dir = "frontend"
+
+[tasks."frontend:check"]
+run = "mise run frontend:lint && mise run frontend:typecheck"
 
 [tasks.lint]
 run = "uv run ruff check ."
@@ -22,7 +42,7 @@ run = "uv run mypy src"
 run = "uv run pytest"
 
 [tasks.check]
-run = "mise run lint && mise run typecheck && mise run test"
+run = "mise run lint && mise run typecheck && mise run test && mise run frontend:check"
 
 [tasks.pre-commit]
 run = "uv run pre-commit run --all-files"

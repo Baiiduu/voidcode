@@ -3,13 +3,13 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
-  test:
+  python:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,3 +48,29 @@ jobs:
 
       - name: Build package
         run: uv build
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: bun run lint
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: bun run typecheck
+
+      - name: Build frontend
+        working-directory: frontend
+        run: bun run build

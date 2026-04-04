@@ -1,0 +1,22 @@
+{
+  "app.title": "VoidCode",
+  "app.tagline": "AI Coding Agent",
+  "nav.workspace": "Workspace",
+  "nav.activity": "Activity",
+  "nav.settings": "Settings",
+  "session.current": "Current Session",
+  "session.agentIdle": "Agent Idle",
+  "session.agentBusy": "Agent Busy",
+  "task.newTask": "New Task",
+  "task.queue": "Task Queue",
+  "task.status.pending": "Pending",
+  "task.status.in_progress": "In Progress",
+  "task.status.completed": "Completed",
+  "task.status.failed": "Failed",
+  "editor.noActiveFile": "No active file",
+  "editor.selectTask": "Select a task or ask the agent to start working on a specific file in the repository.",
+  "activity.log": "Activity Log",
+  "language.switch": "Switch Language",
+  "language.en": "English",
+  "language.zh": "中文"
+}

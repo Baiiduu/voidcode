@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Discussions
-    url: https://github.com/ulw/voidcode/discussions
+    url: https://github.com/lei-jia-xing/voidcode/discussions
     about: Ask questions and discuss ideas with the community.
   - name: Security
-    url: https://github.com/ulw/voidcode/security/policy
+    url: https://github.com/lei-jia-xing/voidcode/security/policy
     about: Report security issues using the project's security policy.

@@ -1,0 +1,22 @@
+{
+  "app.title": "VoidCode",
+  "app.tagline": "AI编程助手",
+  "nav.workspace": "工作区",
+  "nav.activity": "活动",
+  "nav.settings": "设置",
+  "session.current": "当前会话",
+  "session.agentIdle": "代理空闲",
+  "session.agentBusy": "代理忙碌",
+  "task.newTask": "新任务",
+  "task.queue": "任务队列",
+  "task.status.pending": "待处理",
+  "task.status.in_progress": "进行中",
+  "task.status.completed": "已完成",
+  "task.status.failed": "失败",
+  "editor.noActiveFile": "无活动文件",
+  "editor.selectTask": "选择一个任务或让代理开始在仓库中的特定文件上工作。",
+  "activity.log": "活动日志",
+  "language.switch": "切换语言",
+  "language.en": "English",
+  "language.zh": "中文"
+}

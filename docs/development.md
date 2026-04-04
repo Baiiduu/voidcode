@@ -6,9 +6,10 @@ This guide summarizes the local workflow for contributing to VoidCode.
 
 VoidCode uses:
 
-- `mise` for environment and task management
-- `uv` for dependency and package management
-- Python 3.14 as the preferred local version, with 3.13 or 3.12 as fallback options
+- `mise` for task management and sourcing the existing `.venv`
+- `uv` for dependency and package management (Python)
+- `bun` for frontend development and dependency management
+- Python 3.14 as the preferred uv-managed local version, with 3.13 or 3.12 as fallback options
 
 ## Initial setup
 
@@ -17,77 +18,55 @@ Install toolchain dependencies and project dependencies:
 ```bash
 mise install
 uv sync --extra dev
+mise run frontend:install
 ```
 
 Confirm the CLI entrypoint is available:
 
 ```bash
 uv run voidcode --help
+uv run voidcode run "read README.md" --workspace .
 ```
 
 ## mise tasks
 
 The repository defines these `mise` tasks:
 
+### Python tasks
+
 - `mise run lint` → `uv run ruff check .`
 - `mise run format` → `uv run ruff format .`
 - `mise run typecheck` → `uv run mypy src`
 - `mise run test` → `uv run pytest`
-- `mise run check` → runs lint, typecheck, and test
+
+### Frontend tasks
+
+- `mise run frontend:install` → `bun install`
+- `mise run frontend:dev` → `bun run dev`
+- `mise run frontend:lint` → `bun run lint`
+- `mise run frontend:typecheck` → `bun run typecheck`
+
+### Global tasks
+
+- `mise run check` → runs all Python and frontend checks
 - `mise run pre-commit` → `uv run pre-commit run --all-files`
 
-## Common uv commands
+`mise.toml` does not manage Python installation directly; it sources the repository's existing `.venv` and delegates Python dependency/environment management to `uv`.
 
-If you prefer running tools directly instead of through `mise`, the equivalents are:
+## Frontend Development
 
-```bash
-uv sync --extra dev
-uv run voidcode --help
-uv run ruff check .
-uv run ruff format .
-uv run mypy src
-uv run pytest
-uv run pre-commit run --all-files
-```
+The frontend is a Bun-powered React application located in `frontend/`.
 
-## pre-commit setup
+### Current Implementation State
+- **UI Shell**: Functional navigation and layout components.
+- **Mock-backed**: All agent interactions and session data are currently mocked in the frontend.
+- **Backend Integration**: **No live connection** to the Python backend runtime yet. The `src/voidcode` Python package and the `frontend/` React app operate independently at this stage.
 
-Install the git hook locally:
+### Frontend workflow
 
-```bash
-uv run pre-commit install
-```
-
-The current configuration includes:
-
-- trailing whitespace cleanup
-- end-of-file normalization
-- YAML validation
-- large-file checks
-- Ruff linting
-- Ruff formatting checks
-- mypy
-
-## Running tests
-
-Run the full test suite with:
-
-```bash
-mise run test
-```
-
-or:
-
-```bash
-uv run pytest
-```
-
-For the standard local validation pass before opening a contribution, use:
-
-```bash
-mise run check
-mise run pre-commit
-```
+1.  **Install dependencies**: `mise run frontend:install`
+2.  **Start dev server**: `mise run frontend:dev` (runs on [http://localhost:5173](http://localhost:5173))
+3.  **Lint/Typecheck**: `mise run frontend:lint` and `mise run frontend:typecheck` or `mise run check` for all-up validation.
 
 ## Project layout
 
@@ -96,5 +75,7 @@ The current source tree reserves space for three main implementation areas:
 - `src/voidcode/runtime/`
 - `src/voidcode/graph/`
 - `src/voidcode/tools/`
+- `frontend/` (React + Bun + Vite)
+
 
 Tests live under `tests/`, and the original planning documents remain at the repository root in Chinese.

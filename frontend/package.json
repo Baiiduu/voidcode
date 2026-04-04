@@ -1,0 +1,53 @@
+{
+  "name": "voidcode-web",
+  "version": "0.1.0",
+  "description": "VoidCode web frontend - AI coding agent interface",
+  "type": "module",
+  "scripts": {
+    "dev": "bunx --bun vite",
+    "build": "bunx --bun tsc && bunx --bun vite build",
+    "preview": "bunx --bun vite preview",
+    "lint": "bunx eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "bunx prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.18.0",
+    "axios": "^1.6.7",
+    "clsx": "^2.1.0",
+    "i18next": "^26.0.3",
+    "lucide-react": "^0.323.0",
+    "prismjs": "^1.29.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.2",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.22.0",
+    "react-simple-code-editor": "^0.14.1",
+    "remark-gfm": "^4.0.0",
+    "tailwind-merge": "^2.2.1",
+    "ws": "^8.16.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@types/ws": "^8.5.10",
+    "@types/prismjs": "^1.26.3",
+    "@vitejs/plugin-react-swc": "^3.5.0",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.4.35",
+    "prettier": "^3.2.5",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
