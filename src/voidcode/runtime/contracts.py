@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 from .events import EventEnvelope
 from .session import SessionState
@@ -21,6 +22,28 @@ class RuntimeResponse:
     output: str | None = None
 
 
+type RuntimeStreamChunkKind = Literal["event", "output"]
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeStreamChunk:
+    kind: RuntimeStreamChunkKind
+    session: SessionState
+    event: EventEnvelope | None = None
+    output: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind == "event" and self.event is None:
+            raise ValueError("event chunks require an event")
+        if self.kind == "output" and self.output is None:
+            raise ValueError("output chunks require output content")
+
+
 @runtime_checkable
 class RuntimeEntrypoint(Protocol):
     def run(self, request: RuntimeRequest) -> RuntimeResponse: ...
+
+
+@runtime_checkable
+class StreamingRuntimeEntrypoint(Protocol):
+    def run_stream(self, request: RuntimeRequest) -> Iterator[RuntimeStreamChunk]: ...

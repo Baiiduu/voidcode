@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from collections.abc import Iterator
 from dataclasses import FrozenInstanceError, asdict
 from pathlib import Path
 from types import ModuleType
@@ -55,6 +56,7 @@ def test_contract_modules_export_expected_symbols() -> None:
         updated_at=1,
     )
     runtime_response = runtime.RuntimeResponse(session=session, events=(event,), output="done")
+    stream_chunk = runtime.RuntimeStreamChunk(kind="event", session=session, event=event)
     graph_request = graph.GraphRunRequest(session=session, prompt=runtime_request.prompt)
     graph_result = graph.GraphRunResult(session=session, events=(event,), tool_results=(result,))
 
@@ -63,6 +65,7 @@ def test_contract_modules_export_expected_symbols() -> None:
     assert tool.read_only is True
     assert call.arguments == {"path": "README.md"}
     assert runtime_response.events == (event,)
+    assert stream_chunk.event == event
     assert session_summary.session.id == "session-1"
     assert graph_request.available_tools == ()
     assert graph_result.tool_results == (result,)
@@ -114,6 +117,31 @@ def test_runtime_and_graph_protocols_are_runtime_checkable() -> None:
                 output=typed_request.prompt.upper(),
             )
 
+        def run_stream(self, request: Any) -> Iterator[Any]:
+            typed_request = runtime_module.RuntimeRequest(**asdict(request))
+            session = runtime_module.SessionState(
+                session=runtime_module.SessionRef(id=typed_request.session_id or "new-session"),
+                status="running",
+            )
+            yield runtime_module.RuntimeStreamChunk(
+                kind="event",
+                session=session,
+                event=runtime_module.EventEnvelope(
+                    session_id=session.session.id,
+                    sequence=1,
+                    event_type="runtime.request_received",
+                    source="runtime",
+                ),
+            )
+            yield runtime_module.RuntimeStreamChunk(
+                kind="output",
+                session=runtime_module.SessionState(
+                    session=session.session,
+                    status="completed",
+                ),
+                output=typed_request.prompt.upper(),
+            )
+
     class StubGraphRunner:
         def run(self, request: Any) -> Any:
             typed_request = graph_module.GraphRunRequest(**asdict(request))
@@ -126,8 +154,12 @@ def test_runtime_and_graph_protocols_are_runtime_checkable() -> None:
     graph_runner = StubGraphRunner()
 
     assert isinstance(runtime, runtime_module.RuntimeEntrypoint)
+    assert isinstance(runtime, runtime_module.StreamingRuntimeEntrypoint)
     assert isinstance(graph_runner, graph_module.GraphRunner)
     assert runtime.run(runtime_module.RuntimeRequest(prompt="hello")).output == "HELLO"
+    stream = runtime.run_stream(runtime_module.RuntimeRequest(prompt="hello"))
+    assert isinstance(stream, Iterator)
+    assert [chunk.session.status for chunk in stream] == ["running", "completed"]
     assert (
         graph_runner.run(
             graph_module.GraphRunRequest(
@@ -155,3 +187,27 @@ def test_contract_types_expose_explicit_annotations() -> None:
     assert str(tool_result_hints["status"]) == "ToolResultStatus"
     assert graph_runner_hints["request"] is graph.GraphRunRequest
     assert graph_runner_hints["return"] is graph.GraphRunResult
+
+
+def test_runtime_stream_chunk_validates_required_fields() -> None:
+    runtime = _runtime_module()
+
+    session = runtime.SessionState(session=runtime.SessionRef(id="session-1"))
+    event = runtime.EventEnvelope(
+        session_id="session-1",
+        sequence=1,
+        event_type="runtime.request_received",
+        source="runtime",
+    )
+
+    event_chunk = runtime.RuntimeStreamChunk(kind="event", session=session, event=event)
+    output_chunk = runtime.RuntimeStreamChunk(kind="output", session=session, output="done")
+
+    assert event_chunk.event == event
+    assert output_chunk.output == "done"
+
+    with pytest.raises(ValueError, match="event chunks require an event"):
+        _ = runtime.RuntimeStreamChunk(kind="event", session=session)
+
+    with pytest.raises(ValueError, match="output chunks require output content"):
+        _ = runtime.RuntimeStreamChunk(kind="output", session=session)
