@@ -13,6 +13,15 @@ class RuntimeRequest:
     prompt: str
     session_id: str | None = None
     metadata: dict[str, object] = field(default_factory=dict)
+    allocate_session_id: bool = False
+
+
+def validate_session_id(session_id: str) -> str:
+    if not session_id:
+        raise ValueError("session_id must be a non-empty string when provided")
+    if "/" in session_id:
+        raise ValueError("session_id must not contain '/'")
+    return session_id
 
 
 @dataclass(frozen=True, slots=True)
