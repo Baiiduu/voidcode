@@ -4,7 +4,7 @@
 
 ## 开发环境搭建
 
-推荐的本地环境使用 uv 管理的 Python 环境。支持的 Python 版本为 3.14。
+推荐的本地环境使用 uv 管理的 Python 环境。支持的 Python 版本为 3.13。
 
 ```bash
 mise install

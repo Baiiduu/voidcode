@@ -6,9 +6,9 @@
 
 # VoidCode
 
-VoidCode 是一个受 OpenCode 和 Claude Code 启发而开发的本地优先（local-first）编程智能体运行时。
+VoidCode 是一个受 OpenCode 和 Claude Code 启发的本地优先（local-first）编程智能体运行时。
 
-> **状态：** VoidCode 目前处于早期开发的 pre-MVP 阶段。当前仓库重点在于构建运行时基础、架构边界以及首个端到端智能体循环所需的开发人员工作流。
+> **状态：** VoidCode 目前仍处于 pre-MVP 阶段。当前仓库的重点是打磨运行时基础、收紧架构边界，并完成首个可重复验证的端到端单智能体循环。
 
 > **当前文档状态：** `docs/current-state.md` 描述了现状，`docs/roadmap.md` 描述了高层路线图，`docs/mvp-todo-plan.md` 包含执行清单，`docs/mvp-demo-guide.md` 提供了端到端验证步骤，`docs/contracts/` 定义了面向客户端的运行时契约。
 
@@ -24,13 +24,13 @@ VoidCode 旨在提供以以下能力为中心的本地开发智能体体验：
 - 会话持久化与恢复
 - 与 CLI 或未来 UI 客户端分离的无头运行时
 
-目前的研发方向是有意收敛的：在扩展到更大的平台之前，先交付一个稳定的单智能体 MVP 循环。
+当前的研发重点保持聚焦：在扩展到更大的平台之前，先交付一个稳定、可演示的单智能体 MVP 循环。
 
 ## 快速上手
 
-推荐的本地设置使用 uv 管理的 Python 环境和 Bun。支持的 Python 版本为 3.14。
+推荐的本地设置使用 uv 管理的 Python 环境和 Bun。支持的 Python 版本为 3.13。
 
-> **注意：** 目前的实现包含了一个真实的确定性 CLI → 运行时 → 单智能体循环，支持多步执行、会话持久化和恢复，以及 TTY 环境下的内联写入审批。后端提供了一个极简的本地 HTTP/SSE 传输层。前端壳程序目前主要作为 UI 占位符使用，其交互逻辑仍由模拟数据驱动，尚未与真实的后端运行时集成。更完整的 Web 交互体验计划在后续阶段交付。
+> **注意：** 当前仓库已经具备真实的确定性 CLI → 运行时 → 单智能体循环，支持多步执行、会话持久化与恢复，以及 TTY 环境下的内联写入审批。后端还提供了极简的本地 HTTP/SSE 传输层。TUI 已有初始实现，Web 前端也已经接通了最小可用的运行时路径（会话列表、会话重放、流式运行与审批处理），但它们都还没有达到与 CLI 完全对齐的成熟度。
 
 ```bash
 # 安装工具和 Python 环境
@@ -74,7 +74,7 @@ VoidCode 采用分层架构，其中 **LangGraph 负责智能体编排**，而**
 - 优先考虑轮次、工具、审批、钩子和错误的观测性
 - 围绕一个稳定的单智能体任务循环精简 MVP 范围
 
-关于英文版的架构和路线图摘要，请参阅：
+关于架构、路线图、MVP 计划和运行时契约，请参阅：
 
 - [`docs/architecture.md`](./docs/architecture.md)
 - [`docs/roadmap.md`](./docs/roadmap.md)
@@ -83,7 +83,7 @@ VoidCode 采用分层架构，其中 **LangGraph 负责智能体编排**，而**
 - [`docs/contracts/README.md`](./docs/contracts/README.md)
 - [`docs/development.md`](./docs/development.md)
 
-原始设计文档仍保留中文版：
+仓库根目录中仍保留了更早阶段的原始中文设计文档：
 
 - `voidcode-architecture-v1.md`
 - `voidcode-backlog-v1.md`

@@ -86,7 +86,7 @@ EventEnvelope(
 10. `graph.loop_step`
 11. `graph.response_ready`
 
-当 hooks MVP 完成后，非只读工具的成功路径会在工具运行周围插入：
+当前已实现的最小 hooks 路径会在非只读工具的成功执行周围插入：
 
 - `runtime.tool_hook_pre`
 - `runtime.tool_completed`
@@ -136,7 +136,7 @@ EventEnvelope(
 ### `runtime.tool_hook_pre`
 ### `runtime.tool_hook_post`
 - source: `runtime`
-- 锁定 payload 字段：
+- 当前稳定的 payload 字段：
   - `phase`
   - `tool_name`
   - `session_id`

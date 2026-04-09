@@ -46,7 +46,7 @@ voidcode/
 | `ToolRegistry` | class | `src/voidcode/runtime/service.py` | current built-in tool registry |
 
 ## CONVENTIONS
-- Python is pinned to 3.14 only.
+- Python is pinned to 3.13 only.
 - Use `uv` for Python env/deps; `mise` only orchestrates tasks and `.venv` loading.
 - Repo-level verification is `mise run check`; it chains Python and frontend checks.
 - Pre-commit runs hygiene + Ruff + basedpyright through `uv run`.
@@ -56,7 +56,7 @@ voidcode/
 ## ANTI-PATTERNS (THIS PROJECT)
 - Do not have UI clients call tools directly.
 - Do not have LangGraph talk directly to UI clients; flow goes CLI/client → runtime → graph/tools.
-- Do not claim the frontend has live backend integration; it is still mock-backed.
+- Do not claim full frontend/runtime parity; the web client now has a minimal live runtime path, but it is not yet a fully productized runtime-driven app.
 - Do not expand pre-MVP scope into multi-agent/cloud/IDE-plugin work unless the task explicitly targets roadmap changes.
 - Do not commit generated frontend artifacts.
 - Do not open public issues for security-sensitive reports.

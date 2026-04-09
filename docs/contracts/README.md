@@ -1,6 +1,6 @@
 # 契约文档
 
-本目录是面向客户端的运行时契约（Runtime Contracts）的权威来源。
+本目录是面向客户端的运行时契约（Runtime Contracts）权威来源。
 
 ## 范围
 
@@ -8,7 +8,7 @@
 
 它们对以下内容具有规范性：
 
-- 运行时事件词汇表（Runtime event vocabulary）
+- 运行时事件词汇表
 - 面向客户端的 session/run/stream API 形状
 - 审批请求与处理语义
 - 运行时配置界面及优先级
