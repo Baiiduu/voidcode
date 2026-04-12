@@ -83,11 +83,18 @@ uv run voidcode sessions resume <session-id> --workspace .
 
 ## 项目布局
 
-当前源码树为三个主要的实现领域预留了空间：
+当前源码树已经不止三个主要实现领域，而是以三条核心执行边界为中心，并补充了能力层与客户端子模块：
 
 - `src/voidcode/runtime/`
 - `src/voidcode/graph/`
 - `src/voidcode/tools/`
+- `src/voidcode/hook/`
+- `src/voidcode/lsp/`
+- `src/voidcode/skills/`
+- `src/voidcode/provider/`
+- `src/voidcode/acp/`
+- `src/voidcode/mcp/`
+- `src/voidcode/tui/`
 - `frontend/` (React + Bun + Vite)
 
 测试文件位于 `tests/` 目录下，原始规划文档保留在仓库根目录中（中文）。

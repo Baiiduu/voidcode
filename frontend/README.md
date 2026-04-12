@@ -44,18 +44,19 @@ bun run preview
 
 ### 项目结构
 
-> **注意：** 下方的结构描述了前端预期的增长路径，而非当前目录树的完整呈现。目前前端仍相对扁平，主要集中在 `src/App.tsx`、`src/main.tsx`、`src/store/`、`src/i18n/` 和 `src/types/`。
+> **注意：** 下方描述的是当前真实目录树，而不是预期中的未来结构。前端目前仍然相对扁平，核心逻辑主要集中在 `src/App.tsx`、`src/main.tsx`、`src/store/`、`src/lib/runtime/`、`src/i18n/`、`src/types/` 与 `src/components/RuntimeDebug.tsx`。
 
 ```
 frontend/
 ├── src/
-│   ├── components/        # 可复用 UI 组件
-│   ├── pages/            # 路由页面
-│   ├── stores/           # Zustand 状态存储
-│   ├── hooks/            # 自定义 React hooks
-│   ├── lib/              # 工具类和 API 客户端
-│   ├── types/            # TypeScript 类型定义
-│   └── styles/           # 全局样式和 Tailwind 配置
+│   ├── App.tsx           # 当前主界面壳层
+│   ├── main.tsx          # React 入口
+│   ├── components/       # 当前仅包含 RuntimeDebug 等少量组件
+│   ├── i18n/             # 国际化初始化与文案
+│   ├── lib/runtime/      # 运行时 HTTP/SSE 客户端
+│   ├── store/            # Zustand 状态存储
+│   ├── types/            # 前端类型定义（当前仍较薄）
+│   └── index.css         # 全局样式入口
 ├── public/               # 静态资源
 └── index.html            # 入口 HTML
 ```
@@ -67,16 +68,15 @@ frontend/
 - [x] UI 壳程序与导航
 - [x] 运行时驱动的会话列表 / 会话重放 / 流式运行 / 审批处理基础路径
 - [ ] 更完整的运行时驱动任务体验
-- [ ] WebSocket 事件流（计划中）
+- [ ] 更丰富的客户端交互与状态打磨
 
 ## 架构
 
 前端设计通过以下方式与 VoidCode 运行时进行通信：
 
 1. **HTTP API / SSE** - 用于会话管理、会话重放和流式运行事件交付
-2. **WebSocket** - 用于未来更丰富的实时事件流（智能体思考过程、工具调用、审批）
 
-**注意：** 这些接口目前仍是 **MVP 级别的部分实现**。仓库已经具备真实的运行时传输客户端和本地后端服务器路径，当前 UI 可以消费会话列表、重放数据、流式运行事件以及审批处理结果，但更完整的产品化 Web 体验仍未完成。
+**注意：** 当前前端已经具备可工作的运行时传输客户端和本地后端路径，能够消费会话列表、重放数据、流式运行事件以及审批处理结果。它仍然不是一个完整产品化的 runtime-driven Web 客户端，但已经不只是概念验证或纯静态壳层。
 
 ## 贡献
 

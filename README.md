@@ -60,10 +60,13 @@ VoidCode 采用分层架构，其中 **LangGraph 负责智能体编排**，而**
 - 运行时（Runtime）是会话、权限、工具、存储、流式传输和治理的系统边界。
 - LangGraph 是编排引擎，用于处理图状态、路由、检查点和中断/恢复流程；目前已交付一个稳定的、支持多步执行的确定性单智能体循环。
 - CLI、未来的 Web 前端或未来的 IDE 集成等客户端与运行时通信。CLI 支持在 TTY 环境下进行实时的内联写入审批（inline approval）。
-- 代码库围绕三个核心领域组织：
+- 代码库当前围绕运行时控制面、编排层、工具层以及若干能力/客户端子模块组织：
   - `src/voidcode/runtime/`：运行时服务和执行边界
   - `src/voidcode/graph/`：LangGraph 编排和状态转换
   - `src/voidcode/tools/`：内置工具和工具元数据
+  - `src/voidcode/hook/`：hook 配置与执行器
+  - `src/voidcode/lsp/`、`skills/`、`provider/`、`acp/`、`mcp/`：能力层边界目录
+  - `src/voidcode/tui/`：终端客户端层
 
 从架构方案中延续的关键设计原则：
 
