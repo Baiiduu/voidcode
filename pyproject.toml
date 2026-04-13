@@ -30,10 +30,13 @@ dependencies = [
   "langgraph",
   "lsprotocol",
   "pydantic",
+  "pydantic-settings",
   "typing-extensions",
   "textual",
   "httpx",
   "uvicorn",
+  "rapidfuzz>=3.14.5",
+  "unidiff>=0.7.5",
 ]
 
 [project.optional-dependencies]
