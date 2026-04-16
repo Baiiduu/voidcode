@@ -261,7 +261,7 @@ voidcode config show --workspace <path> [--session <id>]
 
 ## 当前限制
 
-- hooks 在此轨道中仅限 pre/post tool 执行；不包含 session-start/session-end/render/message-transform 等阶段
+- hooks 在此轨道中仅限 pre/post tool 执行；不包含 session-start/session-end/render/message-transform/background-task-notification 等阶段
 - hooks 不得改变工具参数或结果，只能观察与失败中止
 - 除 `approval_mode` / `model` / `max_steps` 外，其余扩展领域继续保持浅层仓库本地配置
 - 仅 `approval_mode` / `model` / `max_steps` 在此轨道中具备恢复关键的优先级行为
