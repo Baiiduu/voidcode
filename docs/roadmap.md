@@ -117,20 +117,19 @@ VoidCode 仍处于 pre-MVP 开发阶段。路线图从基础工作贯穿至 MVP 
 
 ### 1. 先处理当前仍然打开的 runtime / client parity / tooling issue
 
-- `#120`：make edit flows formatter-aware and re-read aligned
-- `#122`：add a runtime capability doctor for external tool readiness
+- `#111`：improve built-in LSP presets and defaults
+- `#136`：make LSP lifecycle workspace-scoped and prevent duplicate startup
 
-这两项是当前产品化最直接的主线：
+当前最直接的主线已经从 `#120` / `#122` 转向 LSP 默认可用性与 lifecycle 稳定性：
 
-- `#122` 负责回答“当前环境为什么不能工作、缺什么、该怎么修”；
-- `#120` 负责回答“代码改完以后如何保持格式化、读取结果和实际文件状态一致”。
+- `#111` 负责回答“默认项目能否少配置直接进入可用状态”；
+- `#136` 负责回答“同一 workspace 内的 LSP 生命周期是否稳定且不会重复启动”。
 
-如果这两条链路没有完成，用户即使看到了更多 provider、更多客户端表面或更多可选能力，也很难稳定完成第一次真实任务。
+如果这两条链路没有完成，用户即使已经拥有 formatter-aware edit 和 capability doctor，也仍然会在主流项目的默认体验上遇到阻塞。
 
 ### 2. 再继续能力层的完善与加固
 
 - `#111`：improve built-in LSP presets and defaults
-- `#110`：improve built-in formatter presets and defaults
 - `#130`：add more llm api
 
 这一层工作的目标不是继续堆 capability，而是提高**默认可用性**：让 Python、TypeScript 与常见本地环境在更少手动配置下直接进入可用状态。
@@ -139,7 +138,7 @@ VoidCode 仍处于 pre-MVP 开发阶段。路线图从基础工作贯穿至 MVP 
 
 ### 3. 当前不作为产品化第一优先级的工作
 
-- `#100`：TUI parity 仍然有价值，但当前不应与 CLI + Web 主路径并行争抢产品化时间；
+- `#100`：TUI parity 已完成一轮增强，但 TUI 后续 polish 仍不应与 CLI + Web 主路径并行争抢产品化时间；
 - `#126`：fuzz test 继续有价值，但应服务于主路径稳定化，而不是替代产品化主线本身；
 - `#97`：ACP contract extraction 仍应保持 boundary-first，不应抢占当前 MVP 主路径时间。
 
@@ -153,7 +152,7 @@ VoidCode 仍处于 pre-MVP 开发阶段。路线图从基础工作贯穿至 MVP 
 
 ## Post-MVP 明确方向：预定义 agent 与 multi-agent
 
-multi-agent 支持已经是明确的 post-MVP 方向。当前推荐的进入方式不是让 runtime 失去控制面地位，而是在既有边界之上引入 `src/voidcode/agent/`，用于承载预定义 agent 的声明式配置，例如：
+multi-agent 支持已经是明确的 post-MVP 方向。当前推荐的进入方式不是让 runtime 失去控制面地位，而是在既有边界之上继续使用已经存在的 `src/voidcode/agent/` 作为预定义 agent 的声明式配置边界，并在其之上补齐真正的执行语义，例如：
 
 - prompt / profile
 - hook 绑定

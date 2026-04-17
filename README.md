@@ -60,7 +60,7 @@ VoidCode 采用 runtime-centric 分层架构：**runtime 是系统控制面**，
 - 运行时（Runtime）是会话、权限、工具、存储、流式传输和治理的系统边界。
 - graph 负责执行循环与状态推进；当前 `DeterministicReadOnlyGraph` 使用 LangGraph，而 provider-backed 单智能体路径由 runtime 直接驱动，不依赖 LangGraph。
 - CLI、未来的 Web 前端或未来的 IDE 集成等客户端与运行时通信。CLI 支持在 TTY 环境下进行实时的内联写入审批（inline approval）。
-- 未来的 multi-agent 方向将继续保持 runtime-owned 治理，并计划引入 `src/voidcode/agent/` 作为预定义 agent 定义边界。
+- 未来的 multi-agent 方向将继续保持 runtime-owned 治理；当前仓库中已经存在 `src/voidcode/agent/` 作为预定义 agent 定义边界，但真实的 multi-agent 执行语义仍未落地。
 - 代码库当前围绕运行时控制面、编排层、工具层以及若干能力/客户端子模块组织：
   - `src/voidcode/runtime/`：运行时服务和执行边界
   - `src/voidcode/graph/`：执行/编排层（当前既包含 LangGraph-backed slice，也包含非 LangGraph path）
@@ -68,7 +68,7 @@ VoidCode 采用 runtime-centric 分层架构：**runtime 是系统控制面**，
   - `src/voidcode/hook/`：hook 配置与执行器
   - `src/voidcode/lsp/`、`skills/`、`provider/`、`acp/`、`mcp/`：能力层边界目录
 
-未来计划引入 `src/voidcode/agent/`，作为预定义 agent 定义边界，用于声明 prompt / hook / skill / MCP / tool / provider 配置。
+当前仓库中已经存在 `src/voidcode/agent/`，作为预定义 agent 定义边界，用于声明 prompt / hook / skill / MCP / tool / provider 配置；未来真正扩展的是 multi-agent 执行语义，而不是这个目录本身是否存在。
   - `src/voidcode/tui/`：终端客户端层
 
 从架构方案中延续的关键设计原则：
@@ -88,11 +88,6 @@ VoidCode 采用 runtime-centric 分层架构：**runtime 是系统控制面**，
 - [`docs/mvp-demo-guide.md`](./docs/mvp-demo-guide.md)
 - [`docs/contracts/README.md`](./docs/contracts/README.md)
 - [`docs/development.md`](./docs/development.md)
-
-仓库根目录中仍保留了更早阶段的原始中文设计文档：
-
-- `voidcode-architecture-v1.md`
-- `voidcode-backlog-v1.md`
 
 ## 开发工作流
 
