@@ -222,6 +222,9 @@ def test_stop_running_server_cleans_up_after_shutdown_timeout(tmp_path: Path) ->
     )
     module = import_module("voidcode.runtime.lsp")
     running_server_cls = module._RunningLspServer
+    lease_key_cls = module._LspRegistryKey
+    registry = module._WORKSPACE_SCOPED_LSP_REGISTRY
+    registry._entries.clear()
 
     class _FakeProcess:
         def __init__(self) -> None:
@@ -254,13 +257,18 @@ def test_stop_running_server_cleans_up_after_shutdown_timeout(tmp_path: Path) ->
         workspace_root=tmp_path,
         initialized=True,
     )
+    lease_key = lease_key_cls(server_name="pyright", workspace_root=tmp_path)
+    manager._leased_server_keys["pyright"] = lease_key
+    registry._entries[lease_key] = module._SharedLspServerEntry(
+        server=manager._running_servers["pyright"], ref_count=1
+    )
 
     def _raise_timeout(*args: object, **kwargs: object) -> object:
         raise TimeoutError("shutdown timed out")
 
     manager._send_request = _raise_timeout
 
-    manager._stop_running_server("pyright", record_event=True)
+    manager._release_server_lease("pyright", record_event=True, reason="shutdown")
 
     assert "pyright" not in manager._running_servers
     state = manager.current_state().servers["pyright"]
@@ -270,6 +278,197 @@ def test_stop_running_server_cleans_up_after_shutdown_timeout(tmp_path: Path) ->
     stopped_event = manager.drain_events()[0]
     assert stopped_event.event_type == "runtime.lsp_server_stopped"
     assert stopped_event.payload["workspace_root"] == str(tmp_path)
+    registry._entries.clear()
+
+
+def test_managed_lsp_manager_reuses_workspace_scoped_server_across_runtime_instances(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sample_file = tmp_path / "sample.py"
+    sample_file.write_text("x = 1\n", encoding="utf-8")
+    module = import_module("voidcode.runtime.lsp")
+    registry = module._WORKSPACE_SCOPED_LSP_REGISTRY
+    registry._entries.clear()
+
+    class _FakeProcess:
+        stdin = object()
+        stdout = object()
+
+        def __init__(self) -> None:
+            self.terminated = False
+
+        def poll(self) -> int | None:
+            return 0 if self.terminated else None
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def kill(self) -> None:
+            self.terminated = True
+
+        def wait(self, timeout: float = 0.0) -> int:
+            _ = timeout
+            self.terminated = True
+            return 0
+
+    popen_calls: list[tuple[list[str], Path]] = []
+
+    def _fake_popen(
+        command: list[str], *, cwd: Path, stdin: object, stdout: object, stderr: object
+    ) -> _FakeProcess:
+        _ = stdin, stdout, stderr
+        popen_calls.append((command, cwd))
+        return _FakeProcess()
+
+    def _fake_send_request(
+        self: Any,
+        running_server: Any,
+        *,
+        method: str,
+        params: dict[str, object],
+        server_name: str,
+    ) -> dict[str, object]:
+        _ = self, running_server, params, server_name
+        if method == "shutdown":
+            return {"result": None}
+        return {"result": {"ok": True}}
+
+    monkeypatch.setattr(module.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(ManagedLspManager, "_send_request", _fake_send_request)
+
+    def _fake_send_notification(*args: object, **kwargs: object) -> None:
+        _ = args, kwargs
+
+    monkeypatch.setattr(ManagedLspManager, "_send_notification", _fake_send_notification)
+
+    manager_one = ManagedLspManager(
+        RuntimeLspConfig(
+            enabled=True,
+            servers={"pyright": RuntimeLspServerConfig(command=("pyright-langserver", "--stdio"))},
+        )
+    )
+    manager_two = ManagedLspManager(
+        RuntimeLspConfig(
+            enabled=True,
+            servers={"pyright": RuntimeLspServerConfig(command=("pyright-langserver", "--stdio"))},
+        )
+    )
+    request = LspRequest(
+        server_name="pyright",
+        method="textDocument/definition",
+        params={"textDocument": {"uri": sample_file.as_uri()}},
+        workspace=tmp_path,
+    )
+
+    first_response = manager_one.request(request)
+    second_response = manager_two.request(request)
+
+    assert first_response.response["result"] == {"ok": True}
+    assert second_response.response["result"] == {"ok": True}
+    assert popen_calls == [(["pyright-langserver", "--stdio"], tmp_path)]
+    assert [event.event_type for event in manager_one.drain_events()] == [
+        "runtime.lsp_server_started"
+    ]
+    assert [event.event_type for event in manager_two.drain_events()] == [
+        "runtime.lsp_server_reused"
+    ]
+
+    assert manager_one.shutdown() == ()
+    shutdown_events = manager_two.shutdown()
+    assert [event.event_type for event in shutdown_events] == ["runtime.lsp_server_stopped"]
+    assert shutdown_events[0].payload["reason"] == "shutdown"
+    registry._entries.clear()
+
+
+def test_managed_lsp_manager_rejects_reuse_when_shared_workspace_config_differs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sample_file = tmp_path / "sample.py"
+    sample_file.write_text("x = 1\n", encoding="utf-8")
+    module = import_module("voidcode.runtime.lsp")
+    registry = module._WORKSPACE_SCOPED_LSP_REGISTRY
+    registry._entries.clear()
+
+    class _FakeProcess:
+        stdin = object()
+        stdout = object()
+
+        def __init__(self) -> None:
+            self.terminated = False
+
+        def poll(self) -> int | None:
+            return 0 if self.terminated else None
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def kill(self) -> None:
+            self.terminated = True
+
+        def wait(self, timeout: float = 0.0) -> int:
+            _ = timeout
+            self.terminated = True
+            return 0
+
+    def _fake_popen(
+        command: list[str], *, cwd: Path, stdin: object, stdout: object, stderr: object
+    ) -> _FakeProcess:
+        _ = command, cwd, stdin, stdout, stderr
+        return _FakeProcess()
+
+    def _fake_send_request(
+        self: Any,
+        running_server: Any,
+        *,
+        method: str,
+        params: dict[str, object],
+        server_name: str,
+    ) -> dict[str, object]:
+        _ = self, running_server, params, server_name
+        if method == "shutdown":
+            return {"result": None}
+        return {"result": {"ok": True}}
+
+    def _fake_send_notification(*args: object, **kwargs: object) -> None:
+        _ = args, kwargs
+
+    monkeypatch.setattr(module.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(ManagedLspManager, "_send_request", _fake_send_request)
+    monkeypatch.setattr(ManagedLspManager, "_send_notification", _fake_send_notification)
+
+    manager_one = ManagedLspManager(
+        RuntimeLspConfig(
+            enabled=True,
+            servers={"pyright": RuntimeLspServerConfig(command=("pyright-langserver", "--stdio"))},
+        )
+    )
+    manager_two = ManagedLspManager(
+        RuntimeLspConfig(
+            enabled=True,
+            servers={"pyright": RuntimeLspServerConfig(command=("custom-pyright", "--stdio"))},
+        )
+    )
+    request = LspRequest(
+        server_name="pyright",
+        method="textDocument/definition",
+        params={"textDocument": {"uri": sample_file.as_uri()}},
+        workspace=tmp_path,
+    )
+
+    _ = manager_one.request(request)
+
+    with pytest.raises(ValueError, match="reuse rejected"):
+        _ = manager_two.request(request)
+
+    rejected_events = manager_two.drain_events()
+    assert [event.event_type for event in rejected_events] == [
+        "runtime.lsp_server_startup_rejected"
+    ]
+    assert rejected_events[0].payload["state"] == "rejected"
+    assert manager_two.current_state().servers["pyright"].status == "failed"
+
+    _ = manager_one.shutdown()
+    registry._entries.clear()
 
 
 def test_path_from_file_uri_preserves_unc_host() -> None:

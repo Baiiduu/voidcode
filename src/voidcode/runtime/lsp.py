@@ -5,7 +5,9 @@ import logging
 import os
 import select
 import subprocess
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol, cast
@@ -140,6 +142,64 @@ class _RunningLspServer:
     initialized: bool = False
 
 
+@dataclass(slots=True)
+class _SharedLspServerEntry:
+    server: _RunningLspServer
+    ref_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class _LspRegistryKey:
+    server_name: str
+    workspace_root: Path
+
+
+class _WorkspaceScopedLspRegistry:
+    def __init__(self) -> None:
+        self._entries: dict[_LspRegistryKey, _SharedLspServerEntry] = {}
+        self._lock = threading.RLock()
+
+    def acquire(
+        self,
+        *,
+        key: _LspRegistryKey,
+        config: ResolvedLspServerConfig,
+        factory: Callable[[], _RunningLspServer],
+    ) -> tuple[_RunningLspServer, Literal["started", "reused"]]:
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is not None and entry.server.process.poll() is None:
+                if entry.server.config != config:
+                    raise ValueError(
+                        "workspace-scoped LSP reuse rejected because the existing "
+                        f"{key.server_name} server for {key.workspace_root} was started with "
+                        "a different resolved configuration"
+                    )
+                entry.ref_count += 1
+                return entry.server, "reused"
+
+            if entry is not None:
+                self._entries.pop(key, None)
+
+            server = factory()
+            self._entries[key] = _SharedLspServerEntry(server=server, ref_count=1)
+            return server, "started"
+
+    def release(self, *, key: _LspRegistryKey) -> _RunningLspServer | None:
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is None:
+                return None
+            if entry.ref_count > 1:
+                entry.ref_count -= 1
+                return None
+            self._entries.pop(key, None)
+            return entry.server
+
+
+_WORKSPACE_SCOPED_LSP_REGISTRY = _WorkspaceScopedLspRegistry()
+
+
 class ManagedLspManager:
     def __init__(self, config: RuntimeLspConfig) -> None:
         self._configuration = LspConfigState.from_runtime_config(config)
@@ -147,6 +207,7 @@ class ManagedLspManager:
             name: LspServerState(name=name) for name in self._configuration.servers
         }
         self._running_servers: dict[str, _RunningLspServer] = {}
+        self._leased_server_keys: dict[str, _LspRegistryKey] = {}
         self._pending_events: list[LspRuntimeEvent] = []
         self._converter = lsp_converters.get_converter()
 
@@ -191,7 +252,7 @@ class ManagedLspManager:
 
     def shutdown(self) -> tuple[LspRuntimeEvent, ...]:
         for server_name in tuple(self._running_servers):
-            self._stop_running_server(server_name, record_event=True)
+            self._release_server_lease(server_name, record_event=True, reason="shutdown")
         return self.drain_events()
 
     def drain_events(self) -> tuple[LspRuntimeEvent, ...]:
@@ -208,18 +269,76 @@ class ManagedLspManager:
     ) -> _RunningLspServer:
         running_server = self._running_servers.get(server_name)
         if running_server is not None and running_server.process.poll() is None:
-            if running_server.workspace_root != workspace_root:
-                self._stop_running_server(server_name, record_event=True)
-            else:
-                if not running_server.initialized:
-                    self._initialize_server(running_server, server_name=server_name)
+            if running_server.workspace_root == workspace_root:
                 return running_server
+            self._release_server_lease(server_name, record_event=True, reason="workspace_switch")
+
+        lease_key = _LspRegistryKey(server_name=server_name, workspace_root=workspace_root)
 
         self._server_states[server_name] = LspServerState(
             name=server_name,
             status="starting",
             available=False,
         )
+        try:
+            running_server, outcome = _WORKSPACE_SCOPED_LSP_REGISTRY.acquire(
+                key=lease_key,
+                config=server_config,
+                factory=lambda: self._start_running_server(
+                    server_name=server_name,
+                    server_config=server_config,
+                    workspace_root=workspace_root,
+                ),
+            )
+        except ValueError as exc:
+            message = str(exc)
+            self._mark_failed(server_name=server_name, error=message)
+            self._record_event(
+                LspRuntimeEvent(
+                    event_type=(
+                        "runtime.lsp_server_startup_rejected"
+                        if "reuse rejected" in message
+                        else "runtime.lsp_server_failed"
+                    ),
+                    payload={
+                        "server": server_name,
+                        "command": list(server_config.command),
+                        "workspace_root": str(workspace_root),
+                        "state": "failed" if "reuse rejected" not in message else "rejected",
+                        "error": message,
+                    },
+                )
+            )
+            raise
+
+        self._running_servers[server_name] = running_server
+        self._leased_server_keys[server_name] = lease_key
+        self._server_states[server_name] = LspServerState(
+            name=server_name,
+            status="running",
+            available=True,
+        )
+        if outcome == "reused":
+            self._record_event(
+                LspRuntimeEvent(
+                    event_type="runtime.lsp_server_reused",
+                    payload={
+                        "server": server_name,
+                        "command": list(running_server.config.command),
+                        "workspace_root": str(running_server.workspace_root),
+                        "state": "running",
+                    },
+                )
+            )
+        return running_server
+
+    def _start_running_server(
+        self,
+        *,
+        server_name: str,
+        server_config: ResolvedLspServerConfig,
+        workspace_root: Path,
+    ) -> _RunningLspServer:
         try:
             process = subprocess.Popen(
                 list(server_config.command),
@@ -240,15 +359,6 @@ class ManagedLspManager:
                 workspace_root,
                 list(server_config.command),
             )
-            self._mark_failed(server_name=server_name, error=message)
-            self._record_event(
-                self._failed_event(
-                    server_name=server_name,
-                    server_config=server_config,
-                    workspace_root=workspace_root,
-                    error=message,
-                )
-            )
             raise ValueError(message) from exc
 
         if process.stdin is None or process.stdout is None:
@@ -265,15 +375,6 @@ class ManagedLspManager:
                 workspace_root,
                 list(server_config.command),
             )
-            self._mark_failed(server_name=server_name, error=message)
-            self._record_event(
-                self._failed_event(
-                    server_name=server_name,
-                    server_config=server_config,
-                    workspace_root=workspace_root,
-                    error=message,
-                )
-            )
             raise ValueError(message)
 
         running_server = _RunningLspServer(
@@ -281,7 +382,6 @@ class ManagedLspManager:
             process=process,
             workspace_root=workspace_root,
         )
-        self._running_servers[server_name] = running_server
         self._initialize_server(running_server, server_name=server_name)
         return running_server
 
@@ -376,6 +476,7 @@ class ManagedLspManager:
 
     def _mark_failed(self, *, server_name: str, error: str) -> None:
         running_server = self._running_servers.pop(server_name, None)
+        self._leased_server_keys.pop(server_name, None)
         if running_server is not None and running_server.process.poll() is None:
             running_server.process.terminate()
             try:
@@ -424,11 +525,7 @@ class ManagedLspManager:
             },
         )
 
-    def _stop_running_server(self, server_name: str, *, record_event: bool) -> None:
-        running_server = self._running_servers.pop(server_name, None)
-        if running_server is None:
-            return
-
+    def _stop_running_server(self, server_name: str, running_server: _RunningLspServer) -> None:
         process = running_server.process
         if process.poll() is None:
             should_terminate = not running_server.initialized
@@ -448,12 +545,28 @@ class ManagedLspManager:
                 process.terminate()
             self._wait_for_process_exit(process)
 
+    def _release_server_lease(
+        self,
+        server_name: str,
+        *,
+        record_event: bool,
+        reason: Literal["shutdown", "workspace_switch"],
+    ) -> None:
+        running_server = self._running_servers.pop(server_name, None)
+        lease_key = self._leased_server_keys.pop(server_name, None)
+        if running_server is None or lease_key is None:
+            return
+
+        released_server = _WORKSPACE_SCOPED_LSP_REGISTRY.release(key=lease_key)
+        if released_server is not None:
+            self._stop_running_server(server_name, released_server)
+
         self._server_states[server_name] = LspServerState(
             name=server_name,
             status="stopped",
             available=False,
         )
-        if record_event:
+        if record_event and released_server is not None:
             self._record_event(
                 LspRuntimeEvent(
                     event_type="runtime.lsp_server_stopped",
@@ -462,6 +575,7 @@ class ManagedLspManager:
                         "command": list(running_server.config.command),
                         "workspace_root": str(running_server.workspace_root),
                         "state": "stopped",
+                        "reason": reason,
                     },
                 )
             )
