@@ -145,6 +145,7 @@ class _RunningLspServer:
 @dataclass(slots=True)
 class _SharedLspServerEntry:
     server: _RunningLspServer
+    generation: int
     ref_count: int = 0
 
 
@@ -154,10 +155,22 @@ class _LspRegistryKey:
     workspace_root: Path
 
 
+@dataclass(frozen=True, slots=True)
+class _LspServerLease:
+    key: _LspRegistryKey
+    generation: int
+
+
 class _WorkspaceScopedLspRegistry:
     def __init__(self) -> None:
         self._entries: dict[_LspRegistryKey, _SharedLspServerEntry] = {}
         self._lock = threading.RLock()
+        self._next_generation = 1
+
+    def _allocate_generation(self) -> int:
+        generation = self._next_generation
+        self._next_generation += 1
+        return generation
 
     def acquire(
         self,
@@ -165,7 +178,7 @@ class _WorkspaceScopedLspRegistry:
         key: _LspRegistryKey,
         config: ResolvedLspServerConfig,
         factory: Callable[[], _RunningLspServer],
-    ) -> tuple[_RunningLspServer, Literal["started", "reused"]]:
+    ) -> tuple[_RunningLspServer, _LspServerLease, Literal["started", "reused"]]:
         with self._lock:
             entry = self._entries.get(key)
             if entry is not None and entry.server.process.poll() is None:
@@ -176,24 +189,35 @@ class _WorkspaceScopedLspRegistry:
                         "a different resolved configuration"
                     )
                 entry.ref_count += 1
-                return entry.server, "reused"
+                return (
+                    entry.server,
+                    _LspServerLease(key=key, generation=entry.generation),
+                    "reused",
+                )
 
             if entry is not None:
                 self._entries.pop(key, None)
 
             server = factory()
-            self._entries[key] = _SharedLspServerEntry(server=server, ref_count=1)
-            return server, "started"
+            generation = self._allocate_generation()
+            self._entries[key] = _SharedLspServerEntry(
+                server=server,
+                generation=generation,
+                ref_count=1,
+            )
+            return server, _LspServerLease(key=key, generation=generation), "started"
 
-    def release(self, *, key: _LspRegistryKey) -> _RunningLspServer | None:
+    def release(self, *, lease: _LspServerLease) -> _RunningLspServer | None:
         with self._lock:
-            entry = self._entries.get(key)
+            entry = self._entries.get(lease.key)
             if entry is None:
+                return None
+            if entry.generation != lease.generation:
                 return None
             if entry.ref_count > 1:
                 entry.ref_count -= 1
                 return None
-            self._entries.pop(key, None)
+            self._entries.pop(lease.key, None)
             return entry.server
 
 
@@ -207,7 +231,7 @@ class ManagedLspManager:
             name: LspServerState(name=name) for name in self._configuration.servers
         }
         self._running_servers: dict[str, _RunningLspServer] = {}
-        self._leased_server_keys: dict[str, _LspRegistryKey] = {}
+        self._leased_servers: dict[str, _LspServerLease] = {}
         self._pending_events: list[LspRuntimeEvent] = []
         self._converter = lsp_converters.get_converter()
 
@@ -281,7 +305,7 @@ class ManagedLspManager:
             available=False,
         )
         try:
-            running_server, outcome = _WORKSPACE_SCOPED_LSP_REGISTRY.acquire(
+            running_server, lease, outcome = _WORKSPACE_SCOPED_LSP_REGISTRY.acquire(
                 key=lease_key,
                 config=server_config,
                 factory=lambda: self._start_running_server(
@@ -312,7 +336,7 @@ class ManagedLspManager:
             raise
 
         self._running_servers[server_name] = running_server
-        self._leased_server_keys[server_name] = lease_key
+        self._leased_servers[server_name] = lease
         self._server_states[server_name] = LspServerState(
             name=server_name,
             status="running",
@@ -477,7 +501,7 @@ class ManagedLspManager:
 
     def _mark_failed(self, *, server_name: str, error: str) -> None:
         running_server = self._running_servers.pop(server_name, None)
-        self._leased_server_keys.pop(server_name, None)
+        self._leased_servers.pop(server_name, None)
         if running_server is not None and running_server.process.poll() is None:
             running_server.process.terminate()
             try:
@@ -554,11 +578,11 @@ class ManagedLspManager:
         reason: Literal["shutdown", "workspace_switch"],
     ) -> None:
         running_server = self._running_servers.pop(server_name, None)
-        lease_key = self._leased_server_keys.pop(server_name, None)
-        if running_server is None or lease_key is None:
+        lease = self._leased_servers.pop(server_name, None)
+        if running_server is None or lease is None:
             return
 
-        released_server = _WORKSPACE_SCOPED_LSP_REGISTRY.release(key=lease_key)
+        released_server = _WORKSPACE_SCOPED_LSP_REGISTRY.release(lease=lease)
         if released_server is not None:
             self._stop_running_server(server_name, released_server)
 
