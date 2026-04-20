@@ -1360,6 +1360,10 @@ def test_runtime_executes_grep_read_only_slice_and_emits_events(tmp_path: Path) 
         "path": "sample.txt",
     }
     assert result.events[7].payload == {
+        "tool": "grep",
+        "status": "ok",
+        "content": "Found 2 match(es) for 'alpha' in sample.txt\n1: alpha\n2: beta alpha",
+        "error": None,
         "path": "sample.txt",
         "pattern": "alpha",
         "match_count": 2,
@@ -1558,6 +1562,10 @@ def test_runtime_resumes_multi_step_loop_with_approval_and_stable_replay(tmp_pat
         (event.sequence, event.event_type, event.payload) for event in resumed.events
     ]
     assert resumed.events[24].payload == {
+        "tool": "grep",
+        "status": "ok",
+        "content": "Found 1 match(es) for 'copied' in copied.txt\n1: copied marker",
+        "error": None,
         "path": "copied.txt",
         "pattern": "copied",
         "match_count": 1,
@@ -1872,6 +1880,52 @@ def test_runtime_resume_accepts_legacy_sessions_without_runtime_config_metadata(
             "retained_tool_result_count": 1,
             "max_tool_result_count": 4,
         },
+    }
+
+
+def test_runtime_resume_repairs_legacy_non_dict_runtime_state_metadata(tmp_path: Path) -> None:
+    runtime_request, runtime = _approval_runtime(tmp_path, mode="ask")
+    waiting = runtime.run(
+        runtime_request(prompt="write danger.txt approved later", session_id="legacy-runtime-state")
+    )
+    approval_request_id = cast(str, waiting.events[-1].payload["request_id"])
+
+    database_path = tmp_path / ".voidcode" / "sessions.sqlite3"
+    connection = sqlite3.connect(database_path)
+    try:
+        row = cast(
+            tuple[str],
+            connection.execute(
+                "SELECT metadata_json FROM sessions WHERE session_id = ?",
+                ("legacy-runtime-state",),
+            ).fetchone(),
+        )
+        metadata = cast(dict[str, object], json.loads(row[0]))
+        metadata["runtime_state"] = "broken"
+        _ = connection.execute(
+            "UPDATE sessions SET metadata_json = ? WHERE session_id = ?",
+            (json.dumps(metadata, sort_keys=True), "legacy-runtime-state"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    replay = runtime.resume(
+        "legacy-runtime-state",
+        approval_request_id=approval_request_id,
+        approval_decision="allow",
+    )
+
+    assert replay.session.status == "completed"
+    assert replay.output == "approved later"
+    assert replay.session.metadata["runtime_state"] == {
+        "acp": {
+            "available": False,
+            "configured_enabled": False,
+            "last_error": None,
+            "mode": "disabled",
+            "status": "disconnected",
+        }
     }
 
 
