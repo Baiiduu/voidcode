@@ -22,7 +22,7 @@
 - `graph/` 仍负责执行步骤推进与编排，而不是产品治理；
 - provider-backed 的单 agent 执行路径已经存在；
 - `src/voidcode/agent/` 目录现在已经存在，但当前只是文档化的声明层；
-- ACP 仍然只是受管能力边界的存根，不是当前可用的 agent-to-agent 控制面；
+- ACP 已进入最小的 runtime-managed transport / lifecycle 路径，但仍然不是当前可用的 agent-to-agent 控制面；
 - 真正的 multi-agent delegation、handoff、shared execution topology 仍未实现。
 
 另外，还必须补一句更容易被忽略的现实：

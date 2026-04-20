@@ -63,7 +63,7 @@
 
 - `src/voidcode/graph/read_only_slice.py` 仍是一个小型的确定性解析式循环。
 - skill 目前只有发现，没有真正的执行语义。
-- LSP / ACP 目前是类型化配置载体和 disabled stub。
+- LSP 已经拥有 read-only runtime-managed 基线，ACP 也已进入最小的 runtime-managed transport / lifecycle 路径；两者当前仍保持严格收敛的 MVP 范围，尚未扩展成更宽的 capability surface。
 - provider/model 抽象仍然很窄，尚未形成真实执行引擎的统一入口。
 - 前端和 TUI 仍然主要在“消费已有 runtime path”，还没有形成更成熟的产品交互层。
 
