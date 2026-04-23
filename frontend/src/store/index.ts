@@ -6,6 +6,11 @@ import { ApprovalDecision, StoredSessionSummary, SessionState, EventEnvelope } f
 interface AppState {
   language: 'en' | 'zh-CN';
 
+  agentPreset: 'leader';
+  leaderMode: 'direct_execute' | 'plan_first';
+  providerModel: string;
+  maxSteps: number;
+
   sessions: StoredSessionSummary[];
   currentSessionId: string | null;
   currentSessionState: SessionState | null;
@@ -23,6 +28,10 @@ interface AppState {
   replayRequestId: number;
 
   setLanguage: (lang: 'en' | 'zh-CN') => void;
+  setAgentPreset: (preset: 'leader') => void;
+  setLeaderMode: (mode: 'direct_execute' | 'plan_first') => void;
+  setProviderModel: (model: string) => void;
+  setMaxSteps: (maxSteps: number) => void;
   loadSessions: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
   runTask: (
@@ -60,6 +69,10 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       language: 'en',
+      agentPreset: 'leader',
+      leaderMode: 'direct_execute',
+      providerModel: 'opencode-go/glm-5.1',
+      maxSteps: 16,
 
       sessions: [],
       currentSessionId: null,
@@ -78,12 +91,36 @@ export const useAppStore = create<AppState>()(
       replayRequestId: 0,
 
       setLanguage: (language) => set({ language }),
+      setAgentPreset: (agentPreset) => set({ agentPreset }),
+      setLeaderMode: (leaderMode) => set({ leaderMode }),
+      setProviderModel: (providerModel) => set({ providerModel }),
+      setMaxSteps: (maxSteps) => {
+        const normalizedMaxSteps = Number.isFinite(maxSteps)
+          ? Math.max(1, Math.floor(maxSteps))
+          : 1;
+        set({ maxSteps: normalizedMaxSteps });
+      },
 
       loadSessions: async () => {
         set({ sessionsStatus: 'loading', sessionsError: null });
         try {
           const sessions = await RuntimeClient.listSessions();
-          set({ sessions, sessionsStatus: 'success' });
+          const { currentSessionId } = get();
+
+          if (currentSessionId && !sessions.some(s => s.session.id === currentSessionId)) {
+            set({
+              sessions,
+              sessionsStatus: 'success',
+              currentSessionId: null,
+              currentSessionState: null,
+              currentSessionEvents: [],
+              currentSessionOutput: null,
+              replayStatus: 'idle',
+              replayError: null
+            });
+          } else {
+            set({ sessions, sessionsStatus: 'success' });
+          }
         } catch (err) {
           set({ sessionsStatus: 'error', sessionsError: (err as Error).message });
         }
@@ -143,8 +180,12 @@ export const useAppStore = create<AppState>()(
           }
 
           set({
-            replayStatus: 'error',
-            replayError: (err as Error).message
+            currentSessionId: null,
+            currentSessionState: null,
+            currentSessionEvents: [],
+            currentSessionOutput: null,
+            replayStatus: 'idle',
+            replayError: null
           });
         }
       },
@@ -169,11 +210,22 @@ export const useAppStore = create<AppState>()(
           replayRequestId: nextReplayRequestId
         });
 
+        const metadata = {
+          max_steps: get().maxSteps,
+          ...options?.metadata,
+          agent: {
+            preset: get().agentPreset,
+            leader_mode: get().leaderMode,
+            model: get().providerModel,
+            ...((options?.metadata?.agent as object) || {})
+          }
+        };
+
         try {
           const stream = RuntimeClient.runStream({
             prompt,
             session_id: effectiveSessionId,
-            metadata: options?.metadata,
+            metadata: metadata,
           });
 
           for await (const chunk of stream) {
@@ -182,7 +234,7 @@ export const useAppStore = create<AppState>()(
               return {
                 currentSessionState: chunk.session,
                 currentSessionEvents: newEvents,
-                currentSessionId: chunk.session.session.id,
+                currentSessionId: chunk.session.session ? chunk.session.session.id : state.currentSessionId,
                 currentSessionOutput: chunk.output !== null ? chunk.output : state.currentSessionOutput
               };
             });
@@ -248,7 +300,14 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'app-storage',
-      partialize: (state) => ({ language: state.language, currentSessionId: state.currentSessionId })
+      partialize: (state) => ({
+        language: state.language,
+        agentPreset: state.agentPreset,
+        leaderMode: state.leaderMode,
+        providerModel: state.providerModel,
+        maxSteps: state.maxSteps,
+        currentSessionId: state.currentSessionId
+      })
     }
   )
 );

@@ -68,6 +68,8 @@ _SIMPLIFIED_DEFAULTS: dict[str, tuple[str, str | None, dict[str, str]]] = {
             "kimi-k2.6": "kimi-k2.6",
             "mimo-v2-omni": "mimo-v2-omni",
             "mimo-v2-pro": "mimo-v2-pro",
+            "mimo-v2.5": "mimo-v2.5",
+            "mimo-v2.5-pro": "mimo-v2.5-pro",
             "minimax-m2.5": "minimax-m2.5",
             "minimax-m2.7": "minimax-m2.7",
             "qwen3.5-plus": "qwen3.5-plus",
@@ -137,7 +139,7 @@ _GLM_ZAI_API_KEY_ENV_VAR = "ZAI_API_KEY"
 _GLM_ZHIPU_API_KEY_ENV_VAR = "ZHIPU_API_KEY"
 _MINIMAX_API_KEY_ENV_VAR = "MINIMAX_API_KEY"
 _KIMI_API_KEY_ENV_VAR = "KIMI_API_KEY"
-_OPENCODE_GO_API_KEY_ENV_VAR = "OPENCODE_GO_API_KEY"
+_OPENCODE_API_KEY_ENV_VAR = "OPENCODE_API_KEY"
 
 
 # =============================================================================
@@ -316,7 +318,7 @@ def provider_configs_from_env(env: Mapping[str, str]) -> ProviderConfigs | None:
         ),
         minimax=_simplified_provider_config_from_env(env, _MINIMAX_API_KEY_ENV_VAR),
         kimi=_simplified_provider_config_from_env(env, _KIMI_API_KEY_ENV_VAR),
-        opencode_go=_simplified_provider_config_from_env(env, _OPENCODE_GO_API_KEY_ENV_VAR),
+        opencode_go=_simplified_provider_config_from_env(env, _OPENCODE_API_KEY_ENV_VAR),
         qwen=_simplified_provider_config_from_env(env, "DASHSCOPE_API_KEY"),
     )
     if _provider_configs_has_entries(providers):
@@ -465,7 +467,7 @@ def parse_provider_configs_payload(
             payload.get("opencode-go"),
             field_path=_nested_config_field(source, "opencode-go"),
             env=environment,
-            api_key_env_var=_OPENCODE_GO_API_KEY_ENV_VAR,
+            api_key_env_var=_OPENCODE_API_KEY_ENV_VAR,
         ),
         qwen=_parse_simplified_provider_config(
             payload.get("qwen"),
