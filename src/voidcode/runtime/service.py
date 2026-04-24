@@ -181,6 +181,12 @@ logger = logging.getLogger(__name__)
 
 _EXECUTABLE_AGENT_PRESETS = frozenset({"leader"})
 _EXECUTABLE_SUBAGENT_PRESETS = frozenset({"advisor", "explore", "product", "researcher", "worker"})
+_ACP_CONNECTIVITY_ERRORS = frozenset(
+    {
+        "ACP adapter is not connected",
+        "ACP transport is not connected",
+    }
+)
 _BUILTIN_TOOL_NAMES = frozenset(
     {
         "apply_patch",
@@ -862,6 +868,7 @@ class VoidCodeRuntime:
                 tool_name=tool.tool_name,
                 description=tool.description,
                 input_schema=tool.input_schema,
+                safety=tool.safety,
                 requester=self.request_mcp_tool,
             )
             for tool in self._mcp_manager.list_tools(workspace=self._workspace)
@@ -1010,23 +1017,32 @@ class VoidCodeRuntime:
         payload: dict[str, object],
     ) -> AcpResponseEnvelope:
         task = self.load_background_task(task_id)
-        return self._acp_adapter.request(
-            AcpRequestEnvelope(
-                request_type=request_type,
-                request_id=task.task.id,
-                session_id=task.session_id,
-                parent_session_id=task.parent_session_id,
-                delegation=self._delegated_execution_for_task(
-                    task=task,
-                    lifecycle_status=(
-                        "waiting_approval"
-                        if task.status == "running" and task.approval_request_id
-                        else task.status
-                    ),
+        envelope = AcpRequestEnvelope(
+            request_type=request_type,
+            request_id=task.task.id,
+            session_id=task.session_id,
+            parent_session_id=task.parent_session_id,
+            delegation=self._delegated_execution_for_task(
+                task=task,
+                lifecycle_status=(
+                    "waiting_approval"
+                    if task.status == "running" and task.approval_request_id
+                    else task.status
                 ),
-                payload=payload,
-            )
+            ),
+            payload=payload,
         )
+        response = self._acp_adapter.request(envelope)
+        if response.status != "error" or response.error not in _ACP_CONNECTIVITY_ERRORS:
+            return response
+        try:
+            if response.error == "ACP transport is not connected":
+                _ = self.disconnect_acp()
+            _ = self.connect_acp()
+        except Exception:
+            logger.debug("failed to reconnect ACP for delegated request retry", exc_info=True)
+            return response
+        return self._acp_adapter.request(envelope)
 
     def _delegated_execution_for_task(
         self,

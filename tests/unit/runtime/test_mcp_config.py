@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -91,6 +92,7 @@ def test_parse_mcp_config_defaults_transport_and_preserves_public_dataclasses() 
     assert _parse_mcp_config(
         {
             "enabled": False,
+            "request_timeout_seconds": 3.5,
             "servers": {
                 "echo": {
                     "command": ["python", "tests/fixtures/echo_mcp.py"],
@@ -100,6 +102,7 @@ def test_parse_mcp_config_defaults_transport_and_preserves_public_dataclasses() 
         }
     ) == RuntimeMcpConfig(
         enabled=False,
+        request_timeout_seconds=3.5,
         servers={
             "echo": RuntimeMcpServerConfig(
                 transport="stdio",
@@ -138,6 +141,26 @@ def test_parse_mcp_config_defaults_transport_and_preserves_public_dataclasses() 
             {"servers": {"echo": {"command": ["python"], "env": {1: "enabled"}}}},
             "runtime config field 'mcp.servers.echo.env' keys must be strings",
             id="env-key-type",
+        ),
+        pytest.param(
+            {"request_timeout_seconds": 0},
+            "runtime config field 'mcp.request_timeout_seconds' must be greater than 0",
+            id="request-timeout-positive",
+        ),
+        pytest.param(
+            {"request_timeout_seconds": math.nan},
+            "runtime config field 'mcp.request_timeout_seconds' must be a finite number",
+            id="request-timeout-nan",
+        ),
+        pytest.param(
+            {"request_timeout_seconds": math.inf},
+            "runtime config field 'mcp.request_timeout_seconds' must be a finite number",
+            id="request-timeout-inf",
+        ),
+        pytest.param(
+            {"request_timeout_seconds": -math.inf},
+            "runtime config field 'mcp.request_timeout_seconds' must be a finite number",
+            id="request-timeout-neg-inf",
         ),
     ],
 )
