@@ -74,6 +74,37 @@ describe("Composer", () => {
     expect(onAgentPresetChange).toHaveBeenCalledWith("leader");
   });
 
+  it("filters non-selectable agents from the agent menu", () => {
+    render(
+      <Composer
+        {...baseProps}
+        agentPresets={[
+          {
+            id: "leader",
+            label: "Leader",
+            description: null,
+            mode: "primary",
+            selectable: true,
+          },
+          {
+            id: "worker",
+            label: "Worker",
+            description: null,
+            mode: "subagent",
+            selectable: false,
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+
+    expect(screen.getByRole("button", { name: /Leader/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Worker/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows empty state when no providers are configured", () => {
     render(
       <Composer

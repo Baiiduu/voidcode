@@ -1609,6 +1609,14 @@ class RuntimeTransportApp:
             "id": summary.id,
             "label": summary.label,
             "description": summary.description,
+            "mode": summary.mode,
+            "selectable": summary.selectable,
+            "configured": summary.configured,
+            "execution_engine": summary.execution_engine,
+            "model": summary.model,
+            "model_label": summary.model_label,
+            "model_source": summary.model_source,
+            "provider": summary.provider,
         }
 
     @staticmethod

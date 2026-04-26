@@ -6887,6 +6887,35 @@ def test_runtime_classifies_provider_context_limit_failures(tmp_path: Path) -> N
     }
 
 
+def test_runtime_agent_summary_exposes_stable_agent_and_model_fields(tmp_path: Path) -> None:
+    default_runtime = VoidCodeRuntime(workspace=tmp_path, config=RuntimeConfig())
+
+    default_summary = default_runtime.list_agent_summaries()
+
+    assert len(default_summary) == 1
+    assert default_summary[0].id == "leader"
+    assert default_summary[0].mode == "primary"
+    assert default_summary[0].selectable is True
+    assert default_summary[0].configured is False
+    assert default_summary[0].execution_engine == "provider"
+    assert default_summary[0].model is None
+    assert default_summary[0].model_label is None
+    assert default_summary[0].provider is None
+
+    configured_runtime = VoidCodeRuntime(
+        workspace=tmp_path,
+        config=RuntimeConfig(model="opencode/gpt-5.4"),
+    )
+
+    configured_summary = configured_runtime.list_agent_summaries()[0]
+
+    assert configured_summary.configured is True
+    assert configured_summary.model == "opencode/gpt-5.4"
+    assert configured_summary.model_label == "gpt-5.4"
+    assert configured_summary.model_source == "configured"
+    assert configured_summary.provider == "opencode"
+
+
 def test_runtime_provider_compaction_emits_continuity_state_and_persists_metadata(
     tmp_path: Path,
 ) -> None:

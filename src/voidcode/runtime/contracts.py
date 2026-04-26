@@ -498,6 +498,14 @@ class AgentSummary:
     id: str
     label: str
     description: str | None = None
+    mode: str | None = None
+    selectable: bool = True
+    configured: bool = False
+    execution_engine: str | None = None
+    model: str | None = None
+    model_label: str | None = None
+    model_source: str | None = None
+    provider: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

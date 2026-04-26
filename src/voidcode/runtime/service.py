@@ -2117,15 +2117,74 @@ class VoidCodeRuntime:
         )
 
     def list_agent_summaries(self) -> tuple[AgentSummary, ...]:
-        return tuple(
-            AgentSummary(
-                id=manifest.id,
-                label=manifest.name,
-                description=manifest.description,
+        summaries: list[AgentSummary] = []
+        configured_agent = self._config.agent
+        for manifest in list_builtin_agent_manifests():
+            if manifest.mode != "primary":
+                continue
+
+            agent_config = (
+                configured_agent
+                if configured_agent is not None and configured_agent.preset == manifest.id
+                else None
             )
-            for manifest in list_builtin_agent_manifests()
-            if manifest.mode == "primary"
-        )
+            execution_engine = (
+                agent_config.execution_engine
+                if agent_config is not None and agent_config.execution_engine is not None
+                else manifest.execution_engine
+                if manifest.execution_engine is not None
+                else self._config.execution_engine
+            )
+            configured_model = (
+                agent_config.model
+                if agent_config is not None
+                and agent_config.model is not None
+                and agent_config.model != manifest.model_preference
+                else None
+            )
+            model = configured_model or manifest.model_preference or self._config.model
+            provider_fallback = (
+                agent_config.provider_fallback
+                if agent_config is not None and agent_config.provider_fallback is not None
+                else self._config.provider_fallback
+            )
+            resolved_provider = resolve_provider_config(
+                model,
+                provider_fallback,
+                registry=self._model_provider_registry,
+            )
+            resolved_model = resolved_provider.model or model
+            active_selection = resolved_provider.active_target.selection
+            model_source = (
+                "configured"
+                if configured_model is not None
+                else "builtin"
+                if manifest.model_preference is not None
+                else "configured"
+                if self._config.model is not None or provider_fallback is not None
+                else None
+            )
+            configured = (
+                agent_config is not None
+                or self._config.model is not None
+                or provider_fallback is not None
+            )
+            summaries.append(
+                AgentSummary(
+                    id=manifest.id,
+                    label=manifest.name,
+                    description=manifest.description,
+                    mode=manifest.mode,
+                    selectable=manifest.id in _EXECUTABLE_AGENT_PRESETS,
+                    configured=configured,
+                    execution_engine=execution_engine,
+                    model=resolved_model,
+                    model_label=active_selection.model,
+                    model_source=model_source,
+                    provider=active_selection.provider,
+                )
+            )
+        return tuple(summaries)
 
     def current_status(self) -> RuntimeStatusSnapshot:
         git = self._git_status_snapshot()

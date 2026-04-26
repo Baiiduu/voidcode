@@ -64,6 +64,14 @@ export interface AgentSummary {
   id: string;
   label: string;
   description?: string | null;
+  mode?: string | null;
+  selectable?: boolean;
+  configured?: boolean;
+  execution_engine?: string | null;
+  model?: string | null;
+  model_label?: string | null;
+  model_source?: string | null;
+  provider?: string | null;
 }
 
 export interface GitStatusSnapshot {
