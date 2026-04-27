@@ -2132,17 +2132,17 @@ class VoidCodeRuntime:
                 agent_config.execution_engine
                 if agent_config is not None and agent_config.execution_engine is not None
                 else manifest.execution_engine
-                if manifest.execution_engine is not None
+                if agent_config is not None and manifest.execution_engine is not None
                 else self._config.execution_engine
             )
-            configured_model = (
-                agent_config.model
-                if agent_config is not None
-                and agent_config.model is not None
-                and agent_config.model != manifest.model_preference
-                else None
+            agent_model = agent_config.model if agent_config is not None else None
+            model = (
+                agent_model
+                if agent_model is not None
+                else manifest.model_preference
+                if agent_config is not None and manifest.model_preference is not None
+                else self._config.model
             )
-            model = configured_model or manifest.model_preference or self._config.model
             provider_fallback = (
                 agent_config.provider_fallback
                 if agent_config is not None and agent_config.provider_fallback is not None
@@ -2157,9 +2157,9 @@ class VoidCodeRuntime:
             active_selection = resolved_provider.active_target.selection
             model_source = (
                 "configured"
-                if configured_model is not None
+                if agent_model is not None
                 else "builtin"
-                if manifest.model_preference is not None
+                if agent_config is not None and manifest.model_preference is not None
                 else "configured"
                 if self._config.model is not None or provider_fallback is not None
                 else None

@@ -6897,7 +6897,7 @@ def test_runtime_agent_summary_exposes_stable_agent_and_model_fields(tmp_path: P
     assert default_summary[0].mode == "primary"
     assert default_summary[0].selectable is True
     assert default_summary[0].configured is False
-    assert default_summary[0].execution_engine == "provider"
+    assert default_summary[0].execution_engine == "deterministic"
     assert default_summary[0].model is None
     assert default_summary[0].model_label is None
     assert default_summary[0].provider is None
@@ -6910,10 +6910,26 @@ def test_runtime_agent_summary_exposes_stable_agent_and_model_fields(tmp_path: P
     configured_summary = configured_runtime.list_agent_summaries()[0]
 
     assert configured_summary.configured is True
+    assert configured_summary.execution_engine == "deterministic"
     assert configured_summary.model == "opencode/gpt-5.4"
     assert configured_summary.model_label == "gpt-5.4"
     assert configured_summary.model_source == "configured"
     assert configured_summary.provider == "opencode"
+
+    agent_runtime = VoidCodeRuntime(
+        workspace=tmp_path,
+        config=RuntimeConfig(
+            model="opencode/gpt-5.4",
+            agent=RuntimeAgentConfig(preset="leader"),
+        ),
+    )
+
+    agent_summary = agent_runtime.list_agent_summaries()[0]
+
+    assert agent_summary.configured is True
+    assert agent_summary.execution_engine == "provider"
+    assert agent_summary.model == "opencode/gpt-5.4"
+    assert agent_summary.model_source == "configured"
 
 
 def test_runtime_provider_compaction_emits_continuity_state_and_persists_metadata(

@@ -289,6 +289,53 @@ def _run_app(
     )
 
 
+def test_transport_agents_endpoint_serializes_stable_summary_fields() -> None:
+    runtime_http = importlib.import_module("voidcode.runtime.http")
+    runtime_contracts = importlib.import_module("voidcode.runtime.contracts")
+
+    AgentSummary = runtime_contracts.AgentSummary
+    RuntimeTransportApp = runtime_http.RuntimeTransportApp
+
+    class AgentSummaryRuntime:
+        def list_agent_summaries(self) -> tuple[object, ...]:
+            return (
+                AgentSummary(
+                    id="leader",
+                    label="Leader",
+                    description="Primary agent",
+                    mode="primary",
+                    selectable=True,
+                    configured=True,
+                    execution_engine="provider",
+                    model="opencode/gpt-5.4",
+                    model_label="gpt-5.4",
+                    model_source="configured",
+                    provider="opencode",
+                ),
+            )
+
+    app = RuntimeTransportApp(runtime_factory=AgentSummaryRuntime)
+
+    response = _run_app(app, method="GET", path="/api/agents")
+
+    assert response.status == 200
+    assert response.json() == [
+        {
+            "id": "leader",
+            "label": "Leader",
+            "description": "Primary agent",
+            "mode": "primary",
+            "selectable": True,
+            "configured": True,
+            "execution_engine": "provider",
+            "model": "opencode/gpt-5.4",
+            "model_label": "gpt-5.4",
+            "model_source": "configured",
+            "provider": "opencode",
+        }
+    ]
+
+
 def _parse_sse_payloads(response: _TransportResponse) -> list[dict[str, object]]:
     frames = [frame for frame in response.body.decode("utf-8").split("\n\n") if frame]
     payloads: list[dict[str, object]] = []
